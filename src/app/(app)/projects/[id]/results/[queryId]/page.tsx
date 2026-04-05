@@ -24,6 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
@@ -273,6 +280,29 @@ export default function QueryResultsPage() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [websiteFilter, setWebsiteFilter] = useState<string>("all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
+
+  // Extract unique location parts from addresses (cities, neighborhoods)
+  const locationOptions = useMemo(() => {
+    if (query?.search_type !== "maps") return [];
+    const counts: Record<string, number> = {};
+    for (const r of results) {
+      const mr = r as MapsResult;
+      if (!mr.address) continue;
+      // Split address by commas and clean each part
+      const parts = mr.address.split(",").map((p) => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        // Skip parts that are just numbers (zip codes, street numbers)
+        if (/^\d+$/.test(part)) continue;
+        counts[part] = (counts[part] ?? 0) + 1;
+      }
+    }
+    // Sort by count descending, keep only locations with 2+ results
+    return Object.entries(counts)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+  }, [results, query?.search_type]);
 
   useEffect(() => {
     async function load() {
@@ -321,8 +351,16 @@ export default function QueryResultsPage() {
       });
     }
 
+    // Location filter for maps
+    if (query?.search_type === "maps" && locationFilter !== "all") {
+      filtered = filtered.filter((r) => {
+        const mr = r as MapsResult;
+        return mr.address?.toLowerCase().includes(locationFilter.toLowerCase());
+      });
+    }
+
     return filtered;
-  }, [results, globalFilter, websiteFilter, ratingFilter, query?.search_type]);
+  }, [results, globalFilter, websiteFilter, ratingFilter, locationFilter, query?.search_type]);
 
   const table = useReactTable({
     data: filteredResults,
@@ -442,6 +480,28 @@ export default function QueryResultsPage() {
                 Sans note
               </Button>
             </div>
+
+            {locationOptions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Localite:</span>
+                <Select
+                  value={locationFilter}
+                  onValueChange={(v) => v && setLocationFilter(v)}
+                >
+                  <SelectTrigger className="w-[220px] h-8 text-sm">
+                    <SelectValue placeholder="Toutes les localites" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="all">Toutes les localites</SelectItem>
+                    {locationOptions.map((loc) => (
+                      <SelectItem key={loc.name} value={loc.name}>
+                        {loc.name} ({loc.count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         )}
       </div>
