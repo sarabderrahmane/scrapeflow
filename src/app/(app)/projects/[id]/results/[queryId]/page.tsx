@@ -299,7 +299,14 @@ const getMapsColumns = (onDelete: (id: string) => void): ColumnDef<MapsResult>[]
     accessorKey: "instagram",
     header: "Instagram",
     cell: ({ row }) => {
-      const ig = row.getValue("instagram") as string | null;
+      let ig = row.getValue("instagram") as string | null;
+      // If instagram is empty but website is an instagram link, use it
+      if (!ig) {
+        const website = row.original.website;
+        if (website && website.toLowerCase().includes("instagram.com")) {
+          ig = website;
+        }
+      }
       if (!ig) return "-";
       return (
         <a
