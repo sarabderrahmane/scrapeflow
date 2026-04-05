@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
@@ -40,6 +41,7 @@ import {
   Star,
   Globe,
   MapPin,
+  Trash2,
 } from "lucide-react";
 
 interface SerpResult {
@@ -75,7 +77,7 @@ interface SearchQuery {
   created_at: string;
 }
 
-const serpColumns: ColumnDef<SerpResult>[] = [
+const getSerpColumns = (onDelete: (id: string) => void): ColumnDef<SerpResult>[] => [
   {
     accessorKey: "position",
     header: ({ column }) => (
@@ -134,9 +136,22 @@ const serpColumns: ColumnDef<SerpResult>[] = [
       </p>
     ),
   },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onDelete(row.original.id)}
+      >
+        <Trash2 className="h-4 w-4 text-destructive" />
+      </Button>
+    ),
+  },
 ];
 
-const mapsColumns: ColumnDef<MapsResult>[] = [
+const getMapsColumns = (onDelete: (id: string) => void): ColumnDef<MapsResult>[] => [
   {
     accessorKey: "position",
     header: "#",
@@ -266,6 +281,19 @@ const mapsColumns: ColumnDef<MapsResult>[] = [
       );
     },
   },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onDelete(row.original.id)}
+      >
+        <Trash2 className="h-4 w-4 text-destructive" />
+      </Button>
+    ),
+  },
 ];
 
 export default function QueryResultsPage() {
@@ -281,6 +309,20 @@ export default function QueryResultsPage() {
   const [websiteFilter, setWebsiteFilter] = useState<string>("all");
   const [ratingFilter, setRatingFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
+
+  async function handleDelete(resultId: string) {
+    const type = query?.search_type;
+    const res = await fetch(
+      `/api/projects/${projectId}/results?resultId=${resultId}&type=${type}`,
+      { method: "DELETE" }
+    );
+    if (res.ok) {
+      setResults((prev) => prev.filter((r) => r.id !== resultId));
+      toast.success("Resultat supprime");
+    } else {
+      toast.error("Erreur lors de la suppression");
+    }
+  }
 
   // Extract unique location parts from addresses (cities, neighborhoods)
   const locationOptions = useMemo(() => {
@@ -364,7 +406,7 @@ export default function QueryResultsPage() {
 
   const table = useReactTable({
     data: filteredResults,
-    columns: (query?.search_type === "serp" ? serpColumns : mapsColumns) as ColumnDef<
+    columns: (query?.search_type === "serp" ? getSerpColumns(handleDelete) : getMapsColumns(handleDelete)) as ColumnDef<
       SerpResult | MapsResult
     >[],
     state: { sorting },
