@@ -299,7 +299,7 @@ export default function QueryResultsPage() {
     }
     // Sort by count descending, keep only locations with 2+ results
     return Object.entries(counts)
-      .filter(([, count]) => count >= 2)
+      .filter(([, count]) => count >= 1)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => ({ name, count }));
   }, [results, query?.search_type]);
