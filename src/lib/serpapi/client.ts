@@ -37,6 +37,16 @@ async function fetchWithKeyRotation(
   throw new Error("All SerpAPI keys exhausted. Please wait or add more keys.");
 }
 
+function hasNextPage(data: Record<string, unknown>): boolean {
+  // SerpAPI returns serpapi_pagination.next when more results exist
+  const pagination = data.serpapi_pagination as Record<string, unknown> | undefined;
+  if (pagination?.next) return true;
+  // Also check for next page token in search_information
+  const searchInfo = data.search_information as Record<string, unknown> | undefined;
+  if (searchInfo?.next_page_token) return true;
+  return false;
+}
+
 // Google Search: paginate with num=100 and start offset, up to 1000 results
 export async function searchGoogle(params: {
   query: string;
@@ -44,59 +54,55 @@ export async function searchGoogle(params: {
   language: string;
 }): Promise<Record<string, unknown>[]> {
   const allPages: Record<string, unknown>[] = [];
-  const maxResults = 1000;
-  const perPage = 100; // max allowed by Google/SerpAPI
+  const maxPages = 10;
 
-  for (let start = 0; start < maxResults; start += perPage) {
+  for (let page = 0; page < maxPages; page++) {
     const data = await fetchWithKeyRotation({
       engine: "google",
       q: params.query,
       gl: params.country,
       hl: params.language,
-      num: String(perPage),
-      start: String(start),
+      num: "100",
+      start: String(page * 100),
     });
 
-    allPages.push(data);
-
-    // Stop if no more results
     const organicResults = data.organic_results as unknown[] | undefined;
     if (!organicResults || organicResults.length === 0) break;
 
-    // Stop if fewer results than requested (last page)
-    if (organicResults.length < perPage) break;
+    allPages.push(data);
+
+    // Stop if SerpAPI says no next page
+    if (!hasNextPage(data)) break;
   }
 
   return allPages;
 }
 
-// Google Maps: paginate with start offset, up to 1000 results (20 per page)
+// Google Maps: paginate using SerpAPI pagination, up to 1000 results
 export async function searchGoogleMaps(params: {
   query: string;
   country: string;
   language: string;
 }): Promise<Record<string, unknown>[]> {
   const allPages: Record<string, unknown>[] = [];
-  const maxResults = 1000;
-  const perPage = 20; // Maps returns ~20 per page
+  const maxPages = 50;
 
-  for (let start = 0; start < maxResults; start += perPage) {
+  for (let page = 0; page < maxPages; page++) {
     const data = await fetchWithKeyRotation({
       engine: "google_maps",
       q: params.query,
       gl: params.country,
       hl: params.language,
-      start: String(start),
+      start: String(page * 20),
     });
 
-    allPages.push(data);
-
-    // Stop if no more results
     const localResults = data.local_results as unknown[] | undefined;
     if (!localResults || localResults.length === 0) break;
 
-    // Stop if fewer results than requested (last page)
-    if (localResults.length < perPage) break;
+    allPages.push(data);
+
+    // Stop if SerpAPI says no next page
+    if (!hasNextPage(data)) break;
   }
 
   return allPages;
