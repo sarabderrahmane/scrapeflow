@@ -310,17 +310,14 @@ export default function QueryResultsPage() {
       });
     }
 
-    // Rating filter for maps
+    // Rating filter for maps (x et plus)
     if (query?.search_type === "maps" && ratingFilter !== "all") {
       filtered = filtered.filter((r) => {
         const mr = r as MapsResult;
-        if (!mr.rating) return ratingFilter === "no_rating";
         if (ratingFilter === "no_rating") return !mr.rating;
-        if (ratingFilter === "5") return mr.rating >= 4.5;
-        if (ratingFilter === "4") return mr.rating >= 4.0 && mr.rating < 4.5;
-        if (ratingFilter === "3") return mr.rating >= 3.0 && mr.rating < 4.0;
-        if (ratingFilter === "low") return mr.rating < 3.0;
-        return true;
+        if (!mr.rating) return false;
+        const min = parseFloat(ratingFilter);
+        return mr.rating >= min;
       });
     }
 
@@ -426,37 +423,17 @@ export default function QueryResultsPage() {
               >
                 Toutes
               </Button>
-              <Button
-                variant={ratingFilter === "5" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setRatingFilter("5")}
-              >
-                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
-                4.5+
-              </Button>
-              <Button
-                variant={ratingFilter === "4" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setRatingFilter("4")}
-              >
-                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
-                4.0-4.5
-              </Button>
-              <Button
-                variant={ratingFilter === "3" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setRatingFilter("3")}
-              >
-                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
-                3.0-4.0
-              </Button>
-              <Button
-                variant={ratingFilter === "low" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setRatingFilter("low")}
-              >
-                &lt;3.0
-              </Button>
+              {["4.5", "4", "3.5", "3", "2"].map((val) => (
+                <Button
+                  key={val}
+                  variant={ratingFilter === val ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setRatingFilter(val)}
+                >
+                  <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
+                  {val}+
+                </Button>
+              ))}
               <Button
                 variant={ratingFilter === "no_rating" ? "default" : "outline"}
                 size="sm"
