@@ -72,29 +72,26 @@ export async function POST(request: Request) {
       let resultCount = 0;
 
       if (searchType === "serp") {
-        const rawData = await searchGoogle({ query: keyword, country, language });
-        const parsed = parseSerpResults(rawData);
+        const pages = await searchGoogle({ query: keyword, country, language });
+        const parsed = parseSerpResults(pages);
         resultCount = parsed.length;
 
-        if (parsed.length > 0) {
+        // Insert in batches of 500 (Supabase limit)
+        for (let i = 0; i < parsed.length; i += 500) {
+          const batch = parsed.slice(i, i + 500);
           await supabase.from("serp_results").insert(
-            parsed.map((r) => ({
-              query_id: query.id,
-              ...r,
-            }))
+            batch.map((r) => ({ query_id: query.id, ...r }))
           );
         }
       } else {
-        const rawData = await searchGoogleMaps({ query: keyword, country, language });
-        const parsed = parseMapsResults(rawData);
+        const pages = await searchGoogleMaps({ query: keyword, country, language });
+        const parsed = parseMapsResults(pages);
         resultCount = parsed.length;
 
-        if (parsed.length > 0) {
+        for (let i = 0; i < parsed.length; i += 500) {
+          const batch = parsed.slice(i, i + 500);
           await supabase.from("maps_results").insert(
-            parsed.map((r) => ({
-              query_id: query.id,
-              ...r,
-            }))
+            batch.map((r) => ({ query_id: query.id, ...r }))
           );
         }
       }
