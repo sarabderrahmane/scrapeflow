@@ -15,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Globe, MapPin, Clock, CheckCircle2, XCircle, Search } from "lucide-react";
+import { Globe, MapPin, Clock, CheckCircle2, XCircle, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface SearchQuery {
   id: string;
@@ -34,15 +35,29 @@ export default function ResultsPage() {
   const [queries, setQueries] = useState<SearchQuery[]>([]);
   const [loading, setLoading] = useState(true);
 
+  async function loadQueries() {
+    const res = await fetch(`/api/projects/${projectId}/results`);
+    const data = await res.json();
+    setQueries(data.queries ?? []);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function loadQueries() {
-      const res = await fetch(`/api/projects/${projectId}/results`);
-      const data = await res.json();
-      setQueries(data.queries ?? []);
-      setLoading(false);
-    }
     loadQueries();
   }, [projectId]);
+
+  async function handleDelete(queryId: string) {
+    const res = await fetch(
+      `/api/projects/${projectId}/results?deleteQuery=${queryId}`,
+      { method: "DELETE" }
+    );
+    if (res.ok) {
+      setQueries((prev) => prev.filter((q) => q.id !== queryId));
+      toast.success("Recherche supprimee");
+    } else {
+      toast.error("Erreur lors de la suppression");
+    }
+  }
 
   if (loading) {
     return <div className="text-muted-foreground">Chargement...</div>;
@@ -118,13 +133,22 @@ export default function ResultsPage() {
                   {new Date(query.created_at).toLocaleDateString("fr-FR")}
                 </TableCell>
                 <TableCell>
-                  {query.status === "completed" && query.results_count > 0 && (
-                    <Link href={`/projects/${projectId}/results/${query.id}`}>
-                      <Button variant="ghost" size="sm">
-                        Voir
-                      </Button>
-                    </Link>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {query.status === "completed" && query.results_count > 0 && (
+                      <Link href={`/projects/${projectId}/results/${query.id}`}>
+                        <Button variant="ghost" size="sm">
+                          Voir
+                        </Button>
+                      </Link>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(query.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

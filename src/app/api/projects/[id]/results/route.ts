@@ -74,10 +74,7 @@ export async function DELETE(
   const { searchParams } = new URL(request.url);
   const resultId = searchParams.get("resultId");
   const type = searchParams.get("type"); // "serp" or "maps"
-
-  if (!resultId || !type) {
-    return NextResponse.json({ error: "resultId et type requis" }, { status: 400 });
-  }
+  const deleteQuery = searchParams.get("deleteQuery"); // search query id
 
   // Verify user is editor/owner of this project
   const { data: membership } = await supabase
@@ -91,8 +88,23 @@ export async function DELETE(
     return NextResponse.json({ error: "Acces refuse" }, { status: 403 });
   }
 
-  const table = type === "serp" ? "serp_results" : "maps_results";
   const admin = createAdminClient();
+
+  // Delete a whole search query (cascades to results)
+  if (deleteQuery) {
+    const { error } = await admin.from("search_queries").delete().eq("id", deleteQuery);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  // Delete a single result row
+  if (!resultId || !type) {
+    return NextResponse.json({ error: "resultId+type ou deleteQuery requis" }, { status: 400 });
+  }
+
+  const table = type === "serp" ? "serp_results" : "maps_results";
   const { error } = await admin.from(table).delete().eq("id", resultId);
 
   if (error) {
