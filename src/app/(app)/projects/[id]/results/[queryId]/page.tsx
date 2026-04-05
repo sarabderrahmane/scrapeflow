@@ -52,6 +52,34 @@ function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
+const SOCIAL_DOMAINS = [
+  "instagram.com", "facebook.com", "fb.com", "twitter.com", "x.com",
+  "tiktok.com", "linkedin.com", "youtube.com", "snapchat.com",
+  "pinterest.com", "wa.me", "whatsapp.com", "t.me", "telegram.me",
+];
+
+function classifyUrl(url: string | null): "none" | "social" | "website" {
+  if (!url) return "none";
+  const lower = url.toLowerCase();
+  for (const domain of SOCIAL_DOMAINS) {
+    if (lower.includes(domain)) return "social";
+  }
+  return "website";
+}
+
+function getSocialName(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes("instagram.com")) return "Instagram";
+  if (lower.includes("facebook.com") || lower.includes("fb.com")) return "Facebook";
+  if (lower.includes("twitter.com") || lower.includes("x.com")) return "X/Twitter";
+  if (lower.includes("tiktok.com")) return "TikTok";
+  if (lower.includes("linkedin.com")) return "LinkedIn";
+  if (lower.includes("youtube.com")) return "YouTube";
+  if (lower.includes("wa.me") || lower.includes("whatsapp.com")) return "WhatsApp";
+  if (lower.includes("t.me") || lower.includes("telegram.me")) return "Telegram";
+  return "Social";
+}
+
 interface SerpResult {
   id: string;
   position: number;
@@ -231,33 +259,40 @@ const getMapsColumns = (onDelete: (id: string) => void): ColumnDef<MapsResult>[]
     header: "Site Web",
     cell: ({ row }) => {
       const website = row.getValue("website") as string | null;
-      if (!website) {
+      const type = classifyUrl(website);
+      if (type === "none") {
         return (
           <Badge variant="destructive" className="text-xs">
-            Pas de site
+            Aucun lien
           </Badge>
+        );
+      }
+      if (type === "social") {
+        const name = getSocialName(website!);
+        return (
+          <a
+            href={website!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1"
+          >
+            <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-xs">
+              {name}
+            </Badge>
+          </a>
         );
       }
       return (
         <a
-          href={website}
+          href={website!}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-400 hover:underline flex items-center gap-1 text-sm"
         >
           <Globe className="h-3 w-3" />
-          Voir
+          Site web
         </a>
       );
-    },
-    filterFn: (row, columnId, filterValue) => {
-      if (filterValue === "no_website") {
-        return !row.getValue(columnId);
-      }
-      if (filterValue === "has_website") {
-        return !!row.getValue(columnId);
-      }
-      return true;
     },
   },
   {
@@ -404,9 +439,8 @@ export default function QueryResultsPage() {
     if (query?.search_type === "maps" && websiteFilter !== "all") {
       filtered = filtered.filter((r) => {
         const mr = r as MapsResult;
-        if (websiteFilter === "no_website") return !mr.website;
-        if (websiteFilter === "has_website") return !!mr.website;
-        return true;
+        const type = classifyUrl(mr.website);
+        return type === websiteFilter;
       });
     }
 
@@ -498,28 +532,22 @@ export default function QueryResultsPage() {
         {query.search_type === "maps" && (
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Site web:</span>
-              <Button
-                variant={websiteFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setWebsiteFilter("all")}
-              >
-                Tous
-              </Button>
-              <Button
-                variant={websiteFilter === "no_website" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setWebsiteFilter("no_website")}
-              >
-                Sans site
-              </Button>
-              <Button
-                variant={websiteFilter === "has_website" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setWebsiteFilter("has_website")}
-              >
-                Avec site
-              </Button>
+              <span className="text-sm text-muted-foreground">Lien:</span>
+              {[
+                { value: "all", label: "Tous" },
+                { value: "website", label: "Vrai site web" },
+                { value: "social", label: "Reseau social" },
+                { value: "none", label: "Aucun lien" },
+              ].map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={websiteFilter === opt.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setWebsiteFilter(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">
