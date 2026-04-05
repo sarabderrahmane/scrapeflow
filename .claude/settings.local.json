@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm view:*)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv scraping-app/* .)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest:*)"
+    ]
+  }
+}
