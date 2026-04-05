@@ -55,6 +55,7 @@ interface MapsResult {
   reviews_count: number | null;
   website: string | null;
   category: string | null;
+  place_id: string | null;
 }
 
 interface SearchQuery {
@@ -236,6 +237,28 @@ const mapsColumns: ColumnDef<MapsResult>[] = [
       return cat ? <Badge variant="outline">{cat}</Badge> : "-";
     },
   },
+  {
+    id: "maps_link",
+    header: "Maps",
+    cell: ({ row }) => {
+      const placeId = row.original.place_id;
+      const title = row.original.title;
+      const url = placeId
+        ? `https://www.google.com/maps/place/?q=place_id:${placeId}`
+        : `https://www.google.com/maps/search/${encodeURIComponent(title)}`;
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-blue-400 hover:underline"
+        >
+          <MapPin className="h-3 w-3" />
+          Voir
+        </a>
+      );
+    },
+  },
 ];
 
 export default function QueryResultsPage() {
@@ -249,6 +272,7 @@ export default function QueryResultsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [websiteFilter, setWebsiteFilter] = useState<string>("all");
+  const [ratingFilter, setRatingFilter] = useState<string>("all");
 
   useEffect(() => {
     async function load() {
@@ -286,8 +310,22 @@ export default function QueryResultsPage() {
       });
     }
 
+    // Rating filter for maps
+    if (query?.search_type === "maps" && ratingFilter !== "all") {
+      filtered = filtered.filter((r) => {
+        const mr = r as MapsResult;
+        if (!mr.rating) return ratingFilter === "no_rating";
+        if (ratingFilter === "no_rating") return !mr.rating;
+        if (ratingFilter === "5") return mr.rating >= 4.5;
+        if (ratingFilter === "4") return mr.rating >= 4.0 && mr.rating < 4.5;
+        if (ratingFilter === "3") return mr.rating >= 3.0 && mr.rating < 4.0;
+        if (ratingFilter === "low") return mr.rating < 3.0;
+        return true;
+      });
+    }
+
     return filtered;
-  }, [results, globalFilter, websiteFilter, query?.search_type]);
+  }, [results, globalFilter, websiteFilter, ratingFilter, query?.search_type]);
 
   const table = useReactTable({
     data: filteredResults,
@@ -342,37 +380,91 @@ export default function QueryResultsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <Input
-          placeholder="Rechercher dans les resultats..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Rechercher dans les resultats..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
 
         {query.search_type === "maps" && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant={websiteFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWebsiteFilter("all")}
-            >
-              Tous
-            </Button>
-            <Button
-              variant={websiteFilter === "no_website" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWebsiteFilter("no_website")}
-            >
-              Sans site web
-            </Button>
-            <Button
-              variant={websiteFilter === "has_website" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setWebsiteFilter("has_website")}
-            >
-              Avec site web
-            </Button>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Site web:</span>
+              <Button
+                variant={websiteFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setWebsiteFilter("all")}
+              >
+                Tous
+              </Button>
+              <Button
+                variant={websiteFilter === "no_website" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setWebsiteFilter("no_website")}
+              >
+                Sans site
+              </Button>
+              <Button
+                variant={websiteFilter === "has_website" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setWebsiteFilter("has_website")}
+              >
+                Avec site
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Note:</span>
+              <Button
+                variant={ratingFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("all")}
+              >
+                Toutes
+              </Button>
+              <Button
+                variant={ratingFilter === "5" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("5")}
+              >
+                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
+                4.5+
+              </Button>
+              <Button
+                variant={ratingFilter === "4" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("4")}
+              >
+                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
+                4.0-4.5
+              </Button>
+              <Button
+                variant={ratingFilter === "3" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("3")}
+              >
+                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500 mr-1" />
+                3.0-4.0
+              </Button>
+              <Button
+                variant={ratingFilter === "low" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("low")}
+              >
+                &lt;3.0
+              </Button>
+              <Button
+                variant={ratingFilter === "no_rating" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRatingFilter("no_rating")}
+              >
+                Sans note
+              </Button>
+            </div>
           </div>
         )}
       </div>
