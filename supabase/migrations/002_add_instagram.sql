@@ -1,0 +1,1 @@
+ALTER TABLE maps_results ADD COLUMN IF NOT EXISTS instagram TEXT;
